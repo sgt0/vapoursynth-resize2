@@ -2,7 +2,7 @@
 url = https://bitbucket.org/the-sekrit-twc/zimg.git
 revision = head
 patch_directory = zimg
-diff_files = zimg/0001.patch
+diff_files = zimg/0001.patch, zimg/0002-blur.patch
 clone-recursive = true
 
 [provide]

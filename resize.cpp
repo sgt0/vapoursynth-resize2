@@ -71,7 +71,7 @@ struct chromaloc_pair {
     std::pair<GraphBuilder::ChromaLocationW, GraphBuilder::ChromaLocationH> as_pair() const {
         return { first, second };
     }
-}; 
+};
 
 
 using namespace std::string_literals;
@@ -292,26 +292,26 @@ const std::unordered_map<std::string, zimg_resample_filter_e> g_resample_filter_
 };
 
 
-std::unique_ptr<Filter> translate_resize_filter(zimg_resample_filter_e filter_type, double param_a, double param_b) {
+std::unique_ptr<Filter> translate_resize_filter(zimg_resample_filter_e filter_type, double param_a, double param_b, double blur = 1.0) {
     try {
         switch (filter_type) {
         case ZIMG_RESIZE_POINT:
             return std::make_unique<PointFilter>();
         case ZIMG_RESIZE_BILINEAR:
-            return std::make_unique<BilinearFilter>();
+            return std::make_unique<BilinearFilter>(blur);
         case ZIMG_RESIZE_BICUBIC:
             param_a = std::isnan(param_a) ? BicubicFilter::DEFAULT_B : param_a;
             param_b = std::isnan(param_b) ? BicubicFilter::DEFAULT_C : param_b;
-            return std::make_unique<BicubicFilter>(param_a, param_b);
+            return std::make_unique<BicubicFilter>(param_a, param_b, blur);
         case ZIMG_RESIZE_SPLINE16:
-            return std::make_unique<Spline16Filter>();
+            return std::make_unique<Spline16Filter>(blur);
         case ZIMG_RESIZE_SPLINE36:
-            return std::make_unique<Spline36Filter>();
+            return std::make_unique<Spline36Filter>(blur);
         case ZIMG_RESIZE_SPLINE64:
-            return std::make_unique<Spline64Filter>();
+            return std::make_unique<Spline64Filter>(blur);
         case ZIMG_RESIZE_LANCZOS:
             param_a = std::isnan(param_a) ? LanczosFilter::DEFAULT_TAPS : std::max(param_a, 1.0);
-            return std::make_unique<LanczosFilter>(static_cast<unsigned>(param_a));
+            return std::make_unique<LanczosFilter>(static_cast<unsigned>(param_a), blur);
         default:
             zimg::error::throw_<zimg::error::EnumOutOfRange>("unrecognized resampling filter");
         }
@@ -349,8 +349,8 @@ struct vsrz_image_format {
         double height;
     } active_region;
 
-    GraphBuilder::AlphaType alpha;               
-    
+    GraphBuilder::AlphaType alpha;
+
     vsrz_image_format() {
         this->version = ZIMG_API_VERSION;
 
@@ -789,16 +789,20 @@ class CustomZimgFilter : public Filter {
     mutable std::shared_mutex cache_mutex;
 
 public:
-    CustomZimgFilter(unsigned taps, VSFunction *func, const VSAPI *vsapi) : taps(taps), func(func), vsapi(vsapi), cache{} {}
+    CustomZimgFilter(unsigned taps, double blur, VSFunction *func, const VSAPI *vsapi) : taps(taps), func(func), vsapi(vsapi), cache{} {
+        Filter::blur = blur;
+    }
 
     ~CustomZimgFilter() {
         vsapi->freeFunction(func);
     }
 
-    unsigned support() const override { return taps; };
+    unsigned support() const override { return ceil(taps * blur); };
 
     double operator()(double x) const override {
         {
+            x /= blur;
+
             std::shared_lock<std::shared_mutex> lock(cache_mutex);
             auto it = cache.find((unsigned long long&)x);
 
@@ -963,7 +967,7 @@ class vszimg {
 
         if (!lookup_enum_str_opt(map, key, enum_table, &opt, vsapi))
             return false;
-        
+
         auto it = enum_table_lut.find(opt);
         if (it != enum_table_lut.end()) {
             *out = it->second;
@@ -1019,11 +1023,12 @@ class vszimg {
 
             if (u.custom) {
                 unsigned taps = propGetScalar<unsigned>(in, "taps", vsapi);
+                double blur = propGetScalarDef<double>(in, "blur", 1.0, vsapi);
                 m_custom_kernel = vsapi->mapGetFunction(in, "custom_kernel", 0, &err);
 
                 try {
                     for (int i = 0; i < 2; i++)
-                        filters[i] = std::make_unique<CustomZimgFilter>(taps, vsapi->addFunctionRef(m_custom_kernel), vsapi);
+                        filters[i] = std::make_unique<CustomZimgFilter>(taps, blur, vsapi->addFunctionRef(m_custom_kernel), vsapi);
                 } catch (const std::bad_alloc &) {
                     zimg::error::throw_<zimg::error::OutOfMemory>();
                 }
@@ -1033,6 +1038,7 @@ class vszimg {
 
                 double filter_param_a = propGetScalarDef<double>(in, "filter_param_a", NAN, vsapi);
                 double filter_param_b = propGetScalarDef<double>(in, "filter_param_b", NAN, vsapi);
+                double blur = propGetScalarDef<double>(in, "blur", 1.0, vsapi);
 
                 if (lookup_enum_str_opt(in, "resample_filter_uv", g_resample_filter_table, &resample_filter_uv, vsapi)) {
                     filter_param_a_uv = propGetScalarDef<double>(in, "filter_param_a_uv", NAN, vsapi);
@@ -1042,8 +1048,8 @@ class vszimg {
                     filter_param_b_uv = filter_param_b;
                 }
 
-                filters[0] = translate_resize_filter(u.filter, filter_param_a, filter_param_b);
-                filters[1] = translate_resize_filter(resample_filter_uv, filter_param_a_uv, filter_param_b_uv);
+                filters[0] = translate_resize_filter(u.filter, filter_param_a, filter_param_b, blur);
+                filters[1] = translate_resize_filter(resample_filter_uv, filter_param_a_uv, filter_param_b_uv, blur);
             }
 
             lookup_enum_str_opt(in, "dither_type", g_dither_type_table, h_dither_type_table, &m_params.dither_type, vsapi);
@@ -1429,6 +1435,7 @@ VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI
   INT_OPT(force) \
   INT_OPT(force_h) \
   INT_OPT(force_v) \
+  FLOAT_OPT(blur)
 
     static const char RESAMPLE_ARGS[] =
         "clip:vnode;"

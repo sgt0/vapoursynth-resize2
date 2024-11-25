@@ -1,0 +1,215 @@
+diff --git a/src/zimg/resize/filter.cpp b/src/zimg/resize/filter.cpp
+index 5446dbc..2f53559 100644
+--- a/src/zimg/resize/filter.cpp
++++ b/src/zimg/resize/filter.cpp
+@@ -136,15 +136,24 @@ unsigned PointFilter::support() const { return 0; }
+ double PointFilter::operator()(double x) const { return 1.0; }
+ 
+ 
+-unsigned BilinearFilter::support() const { return 1; }
++BilinearFilter::BilinearFilter(double blur)
++{
++	if (blur <= 0)
++		error::throw_<error::IllegalArgument>("blur must be positive");
++
++	Filter::blur = blur;
++}
++
++unsigned BilinearFilter::support() const { return ceil(blur); }
+ 
+ double BilinearFilter::operator()(double x) const
+ {
++	x /= blur;
+ 	return std::max(1.0 - std::abs(x), 0.0);
+ }
+ 
+ 
+-BicubicFilter::BicubicFilter(double b, double c) :
++BicubicFilter::BicubicFilter(double b, double c, double blur) :
+ 	p0{ (  6.0 -  2.0 * b           ) / 6.0 },
+ 	p2{ (-18.0 + 12.0 * b +  6.0 * c) / 6.0 },
+ 	p3{ ( 12.0 -  9.0 * b -  6.0 * c) / 6.0 },
+@@ -152,13 +161,18 @@ BicubicFilter::BicubicFilter(double b, double c) :
+ 	q1{ (       -12.0 * b - 48.0 * c) / 6.0 },
+ 	q2{ (         6.0 * b + 30.0 * c) / 6.0 },
+ 	q3{ (              -b -  6.0 * c) / 6.0 }
+-{}
++{
++	if (blur <= 0)
++		error::throw_<error::IllegalArgument>("blur must be positive");
+ 
+-unsigned BicubicFilter::support() const { return 2; }
++	Filter::blur = blur;
++}
++
++unsigned BicubicFilter::support() const { return ceil(2 * blur); }
+ 
+ double BicubicFilter::operator()(double x) const
+ {
+-	x = std::abs(x);
++	x = std::abs(x / blur);
+ 
+ 	if (x < 1.0)
+ 		return poly3(x, p0, 0.0, p2, p3);
+@@ -169,11 +183,19 @@ double BicubicFilter::operator()(double x) const
+ }
+ 
+ 
+-unsigned Spline16Filter::support() const { return 2; }
++Spline16Filter::Spline16Filter(double blur)
++{
++	if (blur <= 0)
++		error::throw_<error::IllegalArgument>("blur must be positive");
++
++	Filter::blur = blur;
++}
++
++unsigned Spline16Filter::support() const { return ceil(2 * blur); }
+ 
+ double Spline16Filter::operator()(double x) const
+ {
+-	x = std::abs(x);
++	x = std::abs(x / blur);
+ 
+ 	if (x < 1.0) {
+ 		return poly3(x, 1.0,  -1.0 / 5.0, -9.0 / 5.0, 1.0);
+@@ -186,11 +208,19 @@ double Spline16Filter::operator()(double x) const
+ }
+ 
+ 
+-unsigned Spline36Filter::support() const { return 3; }
++Spline36Filter::Spline36Filter(double blur)
++{
++	if (blur <= 0)
++		error::throw_<error::IllegalArgument>("blur must be positive");
++
++	Filter::blur = blur;
++}
++
++unsigned Spline36Filter::support() const { return ceil(3 * blur); }
+ 
+ double Spline36Filter::operator()(double x) const
+ {
+-	x = std::abs(x);
++	x = std::abs(x / blur);
+ 
+ 	if (x < 1.0) {
+ 		return poly3(x, 1.0,   -3.0 / 209.0, -453.0 / 209.0, 13.0 / 11.0);
+@@ -206,11 +236,19 @@ double Spline36Filter::operator()(double x) const
+ }
+ 
+ 
+-unsigned Spline64Filter::support() const { return 4; }
++Spline64Filter::Spline64Filter(double blur)
++{
++	if (blur <= 0)
++		error::throw_<error::IllegalArgument>("blur must be positive");
++
++	Filter::blur = blur;
++}
++
++unsigned Spline64Filter::support() const { return ceil(4 * blur); }
+ 
+ double Spline64Filter::operator()(double x) const
+ {
+-	x = std::abs(x);
++	x = std::abs(x / blur);
+ 
+ 	if (x < 1.0) {
+ 		return poly3(x, 1.0,    -3.0 / 2911.0, -6387.0 / 2911.0,  49.0 / 41.0);
+@@ -229,17 +267,22 @@ double Spline64Filter::operator()(double x) const
+ }
+ 
+ 
+-LanczosFilter::LanczosFilter(unsigned taps) : taps{ taps }
++LanczosFilter::LanczosFilter(unsigned taps, double blur) : taps{ taps }
+ {
+ 	if (taps <= 0)
+ 		error::throw_<error::IllegalArgument>("lanczos tap count must be positive");
++
++	if (blur <= 0)
++		error::throw_<error::IllegalArgument>("blur must be positive");
++
++	Filter::blur = blur;
+ }
+ 
+-unsigned LanczosFilter::support() const { return taps; }
++unsigned LanczosFilter::support() const { return ceil(taps * blur); }
+ 
+ double LanczosFilter::operator()(double x) const
+ {
+-	x = std::abs(x);
++	x = std::abs(x / blur);
+ 	return x < taps ? sinc(x) * sinc(x / taps) : 0.0;
+ }
+ 
+diff --git a/src/zimg/resize/filter.h b/src/zimg/resize/filter.h
+index 9bede7f..9f0140f 100644
+--- a/src/zimg/resize/filter.h
++++ b/src/zimg/resize/filter.h
+@@ -12,6 +12,9 @@ namespace zimg::resize {
+  * Functor to compute filter taps.
+  */
+ class Filter {
++protected:
++	static constexpr double DEFAULT_BLUR = 1.0;
++	double blur = DEFAULT_BLUR;
+ public:
+ 	/**
+ 	 * Destroy filter.
+@@ -45,6 +48,8 @@ public:
+  */
+ class BilinearFilter : public Filter {
+ public:
++	explicit BilinearFilter(double blur = DEFAULT_BLUR);
++
+ 	unsigned support() const override;
+ 
+ 	double operator()(double x) const override;
+@@ -68,7 +73,7 @@ public:
+ 	 * @param b "b" parameter to bicubic filter
+ 	 * @param c "c" parameter to bicubic filter
+ 	 */
+-	BicubicFilter(double b = DEFAULT_B, double c = DEFAULT_C);
++	BicubicFilter(double b = DEFAULT_B, double c = DEFAULT_C, double blur = DEFAULT_BLUR);
+ 
+ 	unsigned support() const override;
+ 
+@@ -80,6 +85,8 @@ public:
+  */
+ class Spline16Filter : public Filter {
+ public:
++	explicit Spline16Filter(double blur = DEFAULT_BLUR);
++
+ 	unsigned support() const override;
+ 
+ 	double operator()(double x) const override;
+@@ -90,6 +97,8 @@ public:
+  */
+ class Spline36Filter : public Filter {
+ public:
++	explicit Spline36Filter(double blur = DEFAULT_BLUR);
++
+ 	unsigned support() const override;
+ 
+ 	double operator()(double x) const override;
+@@ -100,6 +109,8 @@ public:
+  */
+ class Spline64Filter : public Filter {
+ public:
++	explicit Spline64Filter(double blur = DEFAULT_BLUR);
++
+ 	unsigned support() const override;
+ 
+ 	double operator()(double x) const override;
+@@ -118,8 +129,9 @@ public:
+ 	 * Initialize a LanczosFilter for a given number of taps.
+ 	 *
+ 	 * @param taps number of taps
++	 * @param blur blur factor
+ 	 */
+-	explicit LanczosFilter(unsigned taps);
++	explicit LanczosFilter(unsigned taps, double blur = DEFAULT_BLUR);
+ 
+ 	unsigned support() const override;
+ 

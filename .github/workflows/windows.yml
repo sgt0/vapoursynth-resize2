@@ -6,6 +6,8 @@ on:
       - 'resize.cpp'
       - 'meson.build'
       - 'meson_options.txt'
+      - 'subprojects/zimg.wrap'
+      - 'subprojects/packagefiles/**'
       - '.github/workflows/windows.yml'
   workflow_dispatch:
 
