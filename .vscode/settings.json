@@ -1,9 +1,0 @@
-{
-    "files.associations": {
-        "*.ejs": "ejs",
-        "*.html": "html",
-        "*.vpy": "python",
-        "*.rs": "rust",
-        "cmath": "cpp"
-    }
-}
