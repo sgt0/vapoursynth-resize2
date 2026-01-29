@@ -15,6 +15,11 @@ deps = [
     dependency('zimg_patched'),
 ]
 
+cxx = meson.get_compiler('cpp')
+
+# GH-18: Prefer internal, patched zimg symbols over any external ones.
+add_project_link_arguments(cxx.get_supported_link_arguments('-Wl,-Bsymbolic-functions'), language : 'cpp')
+
 shared_module('resize2', sources,
     dependencies: deps,
     link_args: get_option('link-static') ? ['-static'] : [],
