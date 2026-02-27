@@ -388,6 +388,7 @@ typedef struct filter_graph_builder_params {
     GraphBuilder::force_state force_uv;
 
     double nominal_peak_luminance;
+    char allow_approximate_gamma;
 
     filter_graph_builder_params() {
         dither_type = DitherType::NONE;
@@ -905,7 +906,7 @@ class vszimg {
             graph_params.dither_type = params.dither_type;
             graph_params.cpu = params.cpu_type;
             graph_params.peak_luminance = params.nominal_peak_luminance;
-            graph_params.approximate_gamma = true;
+            graph_params.approximate_gamma = params.allow_approximate_gamma;
 
             _graph = builder.set_source(src_state).connect(dst_state, &graph_params).build_graph().release();
 
@@ -1080,6 +1081,7 @@ class vszimg {
             m_src_top = propGetScalarDef<double>(in, "src_top", NAN, vsapi);
             m_src_width = propGetScalarDef<double>(in, "src_width", NAN, vsapi);
             m_src_height = propGetScalarDef<double>(in, "src_height", NAN, vsapi);
+            m_params.allow_approximate_gamma = propGetScalarDef<int>(in, "approximate_gamma", 1, vsapi);
             m_params.nominal_peak_luminance = propGetScalarDef<double>(in, "nominal_luminance", NAN, vsapi);
 
             if (propGetScalarDef<unsigned>(in, "force", 0, vsapi)) {
@@ -1459,6 +1461,7 @@ VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI
   FLOAT_OPT(src_width) \
   FLOAT_OPT(src_height) \
   FLOAT_OPT(nominal_luminance) \
+  INT_OPT(approximate_gamma) \
   INT_OPT(force) \
   INT_OPT(force_h) \
   INT_OPT(force_v) \
