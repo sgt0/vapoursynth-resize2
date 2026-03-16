@@ -39,7 +39,7 @@ jobs:
         meson compile -C builddir
 
     - name: Upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7.0.0
       with:
         name: resize2-win64
         path: builddir/libresize2.dll
