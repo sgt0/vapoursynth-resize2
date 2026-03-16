@@ -1424,7 +1424,7 @@ fail:
 VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI *vspapi) {
     vspapi->configPlugin(
         "dev.setsugen.resize2", "resize2", "Built-in VapourSynth resizer based on zimg with some modifications.",
-        VS_MAKE_VERSION(2, 0), VAPOURSYNTH_API_VERSION, 0, plugin
+        VS_MAKE_VERSION(4, 0), VAPOURSYNTH_API_VERSION, 0, plugin
     );
 
 #define INT_OPT(x) #x ":int:opt;"
