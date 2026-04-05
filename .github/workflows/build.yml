@@ -46,7 +46,7 @@ jobs:
 
     - name: Dump Meson Debug Info
       if: failure()
-      run: cat builddir/meson-logs/meson-log.txt\
+      run: cat builddir/meson-logs/meson-log.txt
 
   build-unix:
     strategy:
