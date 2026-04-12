@@ -5,12 +5,21 @@ readme = "ReadMe.md"
 license = "LGPL-2.1"
 license-files = ["LICENSE.md"]
 requires-python = ">=3.12"
-dependencies = ["vapoursynth>=74rc2"]
+dependencies = ["vapoursynth>=74"]
 dynamic = ["version"]
 
 [build-system]
-requires = ["meson-python==0.19.0", "ninja==1.13.0", "vapoursynth>=74rc2"]
+requires = ["meson-python==0.19.0", "ninja==1.13.0", "vapoursynth>=74"]
 build-backend = "mesonpy"
 
 [tool.meson-python]
 allow-windows-internal-shared-libs = true
+
+[tool.cibuildwheel]
+build-frontend = { name = "build[uv]", args = ["--verbose", "-Ccompile-args=--verbose"] }
+build = "cp312-*"
+skip = "*-win32 *-manylinux_i686 *-musllinux_i686"
+
+[tool.cibuildwheel.windows]
+# https://cibuildwheel.pypa.io/en/stable/faq/#building-with-meson-python-on-windows
+config-settings = { "setup-args" = "--vsenv" }

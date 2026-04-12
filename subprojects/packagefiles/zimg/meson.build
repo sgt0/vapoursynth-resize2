@@ -6,10 +6,11 @@ project('zimg', 'cpp',
 
 cxx = meson.get_compiler('cpp')
 
-compile_args = [
+compile_args = ['-DGRAPHENGINE_IMPL_NAMESPACE=zimg']
+compile_args += cxx.get_supported_arguments(
     '-Wno-unused-parameter', '-Wno-missing-field-initializers', '-Wformat=2', '-Wno-endif-labels',
-    '-lstdc++', '-fvisibility=hidden', '-DGRAPHENGINE_IMPL_NAMESPACE=zimg'
-]
+    '-fvisibility=hidden',
+)
 
 host_cpu_family = host_machine.cpu_family()
 host_system = host_machine.system()
@@ -29,7 +30,7 @@ elif host_cpu_family.startswith('x86')
         compile_args += ['-DZIMG_X86']
     endif
 
-    compile_args += ['-mfpmath=sse', '-msse2']
+    compile_args += cxx.get_supported_arguments('-mfpmath=sse', '-msse2')
 endif
 
 
@@ -185,9 +186,12 @@ if opt_X86SIMD
         'src/zimg/unresize/x86/unresize_impl_x86.h'
     ]
 
-    HSW_CFLAGS = []
-    if cxx.has_argument('-mtune=haswell')
-        HSW_CFLAGS += ['-mtune=haswell']
+    HSW_CFLAGS = cxx.get_supported_arguments('-mtune=haswell')
+
+    if cxx.get_id() == 'msvc'
+        avx2_isa_args = ['/arch:AVX2']
+    else
+        avx2_isa_args = ['-mavx2', '-mf16c', '-mfma']
     endif
 
     link_libs += static_library(
@@ -200,22 +204,22 @@ if opt_X86SIMD
             'src/zimg/resize/x86/resize_impl_avx2.cpp',
             'src/zimg/unresize/x86/unresize_impl_avx2.cpp'
         ],
-        c_args: compile_args + ['-mavx2', '-mf16c', '-mfma'] + HSW_CFLAGS,
-        cpp_args: compile_args + ['-mavx2', '-mf16c', '-mfma'] + HSW_CFLAGS,
+        c_args: compile_args + avx2_isa_args + HSW_CFLAGS,
+        cpp_args: compile_args + avx2_isa_args + HSW_CFLAGS,
         gnu_symbol_visibility: 'hidden',
         include_directories: incl_dirs
     )
 
-    avx512_args = ['-mavx512f', '-mavx512cd', '-mavx512vl', '-mavx512bw', '-mavx512dq']
-    avx512vnni_args = ['-mavx512f', '-mavx512cd', '-mavx512vl', '-mavx512bw', '-mavx512dq', '-mavx512vnni']
-
-    if cxx.has_argument('-mtune=skylake-avx512')
-        avx512_args += ['-mtune=skylake-avx512']
+    if cxx.get_id() == 'msvc'
+        avx512_args = ['/arch:AVX512']
+        avx512vnni_args = ['/arch:AVX512']
+    else
+        avx512_args = ['-mavx512f', '-mavx512cd', '-mavx512vl', '-mavx512bw', '-mavx512dq']
+        avx512vnni_args = ['-mavx512f', '-mavx512cd', '-mavx512vl', '-mavx512bw', '-mavx512dq', '-mavx512vnni']
     endif
 
-    if cxx.has_argument('-mtune=cascadelake')
-        avx512vnni_args += ['-mtune=cascadelake']
-    endif
+    avx512_args += cxx.get_supported_arguments('-mtune=skylake-avx512')
+    avx512vnni_args += cxx.get_supported_arguments('-mtune=cascadelake')
 
     link_libs += static_library(
         'avx512',
@@ -246,15 +250,20 @@ if opt_X86SIMD
     )
 endif # X86SIMD_AVX512
 
-vapoursynth_dep = dependency('vapoursynth').partial_dependency(compile_args : true, includes : true)
+py = import('python').find_installation()
+vapoursynth_include_command = run_command(
+    py,
+    '-c',
+    'import vapoursynth as vs; print(vs.get_include())',
+    check: true,
+)
+vapoursynth_include = include_directories(vapoursynth_include_command.stdout().strip())
 
-deps = [
-    vapoursynth_dep
-]
+deps = []
 
-if host_machine.system() == 'windows'
+if host_machine.system() == 'windows' and meson.get_compiler('cpp').get_id() != 'msvc'
     deps += [meson.get_compiler('cpp').find_library('winpthread', static: true)]
-else
+elif host_machine.system() != 'windows'
     deps += [dependency('threads')]
 endif
 
@@ -263,11 +272,11 @@ zimg = static_library('zimg', sources,
     cpp_args: compile_args,
     dependencies : deps,
     link_with: link_libs,
-    include_directories: incl_dirs,
+    include_directories: [vapoursynth_include, incl_dirs],
 )
 
 zimg_patched_dep = declare_dependency(
     dependencies: deps,
     link_with: zimg,
-    include_directories: incl_dirs,
+    include_directories: [vapoursynth_include, incl_dirs],
 )
