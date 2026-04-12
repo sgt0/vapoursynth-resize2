@@ -5,17 +5,24 @@ a blur parameter to widen filter taps, and force-resize flags for overriding zim
 
 ## Differences from Core Resize
 
-### New Method:
+### New Method
+
 - **`Custom`**: Allows using a user-defined function as the scaling kernel.
   - `custom_kernel`: A callback function that takes an input position and returns an evaluated kernel value.
+  - `taps`: The number of filter taps for the custom kernel.
 
 ### New Parameters
+
 Added to all resizing methods:
-- **`blur`**: Multiplier for the filter frequency. Values > 1.0 blur the image, while values < 1.0 sharpen it.
+
+- **`blur`** / **`blur_uv`**: Multiplier for the filter frequency. Values > 1.0 blur the image, while values < 1.0 sharpen it.
+  `blur_uv` specifically affects chroma planes.
+
   Equivalent to `fh` and `fv` parameters of `fmtc`: `blur=1.5` == `fh=1 / 1.5, fv=1 / 1.5`
-- **`force`**: Boolean flag to force processing even when zimg would typically skip it.
-- **`force_h`**: Force horizontal processing specifically.
-- **`force_v`**: Force vertical processing specifically.
+
+- **`force`** / **`force_uv`**: Boolean flag to force processing even when zimg would typically skip it. `force_uv` affects chroma.
+- **`force_h`** / **`force_h_uv`**: Force horizontal processing specifically for luma or chroma.
+- **`force_v`** / **`force_v_uv`**: Force vertical processing specifically for luma or chroma.
 
 ## Installation
 
@@ -50,7 +57,7 @@ Requirements:
    uv build --wheel -Csetup-args="-Dlink-static=true"
    ```
 
-### Linux & macOS 
+### Linux & macOS
 
 Requirements:
 
