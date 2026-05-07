@@ -30,7 +30,7 @@ Pre-compiled wheels are available on PyPI for:
 
 - **Windows**: x86_64
 - **Linux**: x86_64 and aarch64
-- **macOS**: arm64 (11.0+)
+- **macOS**: x86_64 and arm64 (13.0+)
 
 ```bash
 pip install vapoursynth-resize2
