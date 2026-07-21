@@ -1,5 +1,5 @@
 diff --git a/src/zimg/graph/graphbuilder.cpp b/src/zimg/graph/graphbuilder.cpp
-index ccb757b..3b4383e 100644
+index 19c966c..3a7cea4 100644
 --- a/src/zimg/graph/graphbuilder.cpp
 +++ b/src/zimg/graph/graphbuilder.cpp
 @@ -327,6 +327,8 @@ struct GraphBuilder::internal_state {
@@ -52,8 +52,8 @@ index ccb757b..3b4383e 100644
  
  	bool can_copy_tile(const internal_state &target, int p)
  	{
-+        if (p == PLANE_Y ? target.force : target.force_uv)
-+            return false;
++		if (p == PLANE_Y ? target.force : target.force_uv)
++			return false;
  		auto is_integer = [](double x) { return std::trunc(x) == x; };
  
  		const internal_state::plane &src_plane = m_state.planes[p];
@@ -85,14 +85,14 @@ index ccb757b..3b4383e 100644
  
  			observer.resize(conv, p);
 diff --git a/src/zimg/graph/graphbuilder.h b/src/zimg/graph/graphbuilder.h
-index 7bafac3..7f72628 100644
+index dbd1b0e..3f9b568 100644
 --- a/src/zimg/graph/graphbuilder.h
 +++ b/src/zimg/graph/graphbuilder.h
-@@ -104,6 +104,26 @@ public:
- 		BOTTOM,
+@@ -85,6 +85,25 @@ public:
  	};
  
-+	struct force_state {
+ 	// Whether the image is a frame or a field.
++		struct force_state {
 +		bool force_h;
 +		bool force_v;
 +
@@ -111,11 +111,10 @@ index 7bafac3..7f72628 100644
 +			return !(lhs == rhs);
 +		}
 +	};
-+
- 	// Canonical state.
- 	struct state {
- 		unsigned width;
-@@ -128,6 +148,9 @@ public:
+ 	enum class FieldParity {
+ 		PROGRESSIVE,
+ 		TOP,
+@@ -128,6 +147,9 @@ public:
  		double active_height;
  
  		AlphaType alpha;
@@ -126,7 +125,7 @@ index 7bafac3..7f72628 100644
  
  	// Filter instantiation parameters.
 diff --git a/src/zimg/resize/resize.cpp b/src/zimg/resize/resize.cpp
-index 195938d..c031c97 100644
+index 195938d..5be5c1b 100644
 --- a/src/zimg/resize/resize.cpp
 +++ b/src/zimg/resize/resize.cpp
 @@ -32,7 +32,9 @@ ResizeConversion::ResizeConversion(unsigned src_width, unsigned src_height, Pixe
@@ -135,8 +134,8 @@ index 195938d..c031c97 100644
  	subheight{ static_cast<double>(src_height) },
 -	cpu{ CPUClass::NONE }
 +	cpu{ CPUClass::NONE },
-+	force_h {},
-+	force_v {}
++	force_h{},
++	force_v{}
  {}
  
  auto ResizeConversion::create() const -> filter_pair try
