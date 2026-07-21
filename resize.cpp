@@ -389,10 +389,13 @@ typedef struct filter_graph_builder_params {
 
     double nominal_peak_luminance;
     char allow_approximate_gamma;
+    char chromatic_adaptation;
 
     filter_graph_builder_params() {
         dither_type = DitherType::NONE;
         cpu_type = CPUClass::AUTO;
+        allow_approximate_gamma = 1;
+        chromatic_adaptation = 1;
     }
 } filter_graph_builder_params;
 
@@ -907,6 +910,7 @@ class vszimg {
             graph_params.cpu = params.cpu_type;
             graph_params.peak_luminance = params.nominal_peak_luminance;
             graph_params.approximate_gamma = params.allow_approximate_gamma;
+            graph_params.chromatic_adaptation = params.chromatic_adaptation;
 
             _graph = builder.set_source(src_state).connect(dst_state, &graph_params).build_graph().release();
 
@@ -1082,6 +1086,7 @@ class vszimg {
             m_src_width = propGetScalarDef<double>(in, "src_width", NAN, vsapi);
             m_src_height = propGetScalarDef<double>(in, "src_height", NAN, vsapi);
             m_params.allow_approximate_gamma = propGetScalarDef<int>(in, "approximate_gamma", 1, vsapi);
+            m_params.chromatic_adaptation = propGetScalarDef<int>(in, "chromatic_adaptation", 1, vsapi);
             m_params.nominal_peak_luminance = propGetScalarDef<double>(in, "nominal_luminance", NAN, vsapi);
 
             if (propGetScalarDef<unsigned>(in, "force", 0, vsapi)) {
@@ -1462,6 +1467,7 @@ VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI
   FLOAT_OPT(src_height) \
   FLOAT_OPT(nominal_luminance) \
   INT_OPT(approximate_gamma) \
+  INT_OPT(chromatic_adaptation) \
   INT_OPT(force) \
   INT_OPT(force_h) \
   INT_OPT(force_v) \
